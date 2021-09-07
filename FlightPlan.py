@@ -4,6 +4,7 @@
 import sys,time
 from threading import Thread
 from os import path,getenv
+import math
 
 #add PPRZ_HOME var to Path
 DIR = path.dirname(path.abspath(__file__))
@@ -125,9 +126,13 @@ def recv_callback(ac_id, recvMsg):
         #out.write("%d. Goal_Achieved-MSG: %s\n" % (counter, recvMsg))
         #out.close()
         #counter+=1
-
-        if(abs(ATT_POINTS[epoche%len(ATT_POINTS)]["lat"]-int(recvMsg["lat"]))<1000 and 
-           abs(ATT_POINTS[epoche%len(ATT_POINTS)]["lon"]-int(recvMsg["lon"]))<1000):
+    lat1 = ATT_POINTS[epoche%len(ATT_POINTS)]["lat"]*math.pi/180
+    lon1 = ATT_POINTS[epoche%len(ATT_POINTS)]["lon"]*math.pi/180
+    
+    lat2 = recvMsg["lat"]
+    lon2 = recvMsg["lon"]
+    
+        if 6371000*math.acos(math.sin(lat1)*math.sin(lat2)+math.cos(lat1)*math.cos(lat2)*math.cos(lon1-lon2)) <= 1.5:
             updating = True
             sendingThread.join()
 
