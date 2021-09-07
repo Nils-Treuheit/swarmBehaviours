@@ -128,7 +128,7 @@ struct Message_Debug {
 
 struct Message_Goal {
    uint8_t ac_id;
-   struct LlaCoor_i own_pos;
+   struct LlaCoor_f own_pos;
    bool reached;
 };
 
@@ -141,7 +141,7 @@ static struct EnuCoor_f acc = {0.0f, 0.0f, 0.0f};
 // static struct LlaCoor_f att_points[] = { {52.13878f, 11.64539f, FLIGHT_HEIGHT}, {52.13894f, 11.64589f, FLIGHT_HEIGHT}, {52.13899f, 11.64465f, FLIGHT_HEIGHT}, {52.13843f, 11.64448f, FLIGHT_HEIGHT}, {52.13829f, 11.64588f, FLIGHT_HEIGHT} };
 // static struct LlaCoor_f rep_points[] = { {52.139193227158565f, 11.645442243819168f, FLIGHT_HEIGHT}, {52.13873185661875f, 11.64604126781022f, FLIGHT_HEIGHT}, {52.13983556877823f, 11.647903288820826f, FLIGHT_HEIGHT}, {52.13927000303959f, 11.646538979628147f, FLIGHT_HEIGHT}, {52.13972261306308f, 11.644770246818533f, FLIGHT_HEIGHT} };
 static struct Message_Debug msg = {{0.0f,0.0f,0.0f},{0.0f,0.0f,0.0f},0,{0.0f,0.0f,0.0f},0.0f,0.0f,false,{0.0f,0.0f,0.0f},0.0f,0.0f,false};
-static struct Message_Goal syncLink = {AC_ID,{0,0,0},false};
+static struct Message_Goal syncLink = {AC_ID,{0.0f,0.0f,0.0f},false};
 static struct LlaCoor_i att_point = {0,0,0};
 
 /** Get position in local ENU coordinates (float).
@@ -254,11 +254,15 @@ static void attRep(struct EnuCoor_f *own_pos, struct EnuCoor_f* pos_ac, struct E
     acc->y += force.y;
 }
 
-static void updateSyncLinkMsg(struct LlaCoor_i* own_pos)
+static void updateSyncLinkMsg(struct LlaCoor_f* own_pos)
 {
-    if (abs(own_pos->lon - att_point.lon)<=abs((int)(offset.lon*1e7*180/M_PI) - own_pos->lon)
-     && abs(own_pos->lat - att_point.lat)<=abs((int)(offset.lat*1e7*180/M_PI) - own_pos->lat))
-      {
+    struct LlaCoor_f* att_point_f;
+    att_point_f->lon = att_point.lon/1e7*M_PI/180;
+    att_point_f->lat = att_point.lat/1e7*M_PI/180;
+    att_point_f->alt = 47;
+    /** for circular distance lat and lon are in radians*/
+    if (RADIUS*acos(sin(own_pos->lat)*sin(att_point_f->lat) + cos(own_pos->lat)*cos(att_point_f->lat)*cos(own_pos->lon - att_point_f->lon)) <= 1.5)
+    {
         syncLink.own_pos.lat = own_pos->lat;
         syncLink.own_pos.lon = own_pos->lon;
         syncLink.own_pos.alt = own_pos->alt;
@@ -320,10 +324,6 @@ void swarm_follow_wp(void)
   // Move the waypoint
   waypoint_set_enu_i(SWARM_WAYPOINT_ID, &enu);
   att_point = *waypoint_get_lla(ATTRACTION_POINT_ID);
-  struct LlaCoor_i* pos = stateGetPositionLla_i();
-  struct EcefCoor_f* ecef_pos = stateGetPositionEcef_f();
-  ecef_pos->x += 1.5f;
-  ecef_pos->y += 1.5f;
-  lla_of_ecef_f(&offset,ecef_pos);
+  struct LlaCoor_f* pos = stateGetPositionLla_f();
   updateSyncLinkMsg(pos);
 }
